@@ -18,7 +18,7 @@ typedef struct {
     int TrackCount;
     int Division;
     uint16_t CurrentTick;
-    unsigned char *Data;
+    uint64_t *Data;
     int *TrackOffsets;
     Track *Tracks;
     bool Running;

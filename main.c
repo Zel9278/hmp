@@ -78,8 +78,10 @@ void loadMidiFile(char *filename)
     midiFile.TrackCount = header.numberOfTracks;
     midiFile.CurrentTick = 0;
 
-    unsigned char data[dataSize];
-    midiFile.Data = data;
+    midiFile.Data = malloc(sizeof(uint64_t) * dataSize);
+    if (!midiFile.Data) {
+        printf("Error: could not allocate memory for MIDI data\n");
+    }
 
     int trackOffsets[header.numberOfTracks];
     midiFile.TrackOffsets = trackOffsets;
@@ -129,7 +131,11 @@ void loadMidiFile(char *filename)
         printf("Total read: %d bytes\n", offset);
     }
 
+    free(midiFile.Data);
+
     fclose(file);
+
+    printf("MIDI file loaded\n");
 }
 
 int main(int argc, char** argv)
