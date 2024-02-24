@@ -1,6 +1,9 @@
 {
     "files.associations": {
         "midi_header.h": "c",
-        "midi_data.h": "c"
+        "midi_data.h": "c",
+        "midiplayer.h": "c",
+        "tsf.h": "c",
+        "stdio.h": "c"
     }
 }

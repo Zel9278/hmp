@@ -2,8 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "midi_header.h"
-#include "midi_data.h"
+#include "midiplayer.h"
 
 uint16_t swap_uint16( uint16_t val ) 
 {
