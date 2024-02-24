@@ -1,5 +1,5 @@
-#ifndef MIDIPLAYER_H
-#define MIDIPLAYER_H
+#ifndef SOUNDFONT_H
+#define SOUNDFONT_H
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -9,7 +9,6 @@
 #include "midi_data.h"
 #include "tsf.h"
 
-void playMidiFile(tsf *tsf, MIDIFile *midiFile);
-void *loadMidiFile(void *context);
+void *initTSF(void *context);
 
 #endif

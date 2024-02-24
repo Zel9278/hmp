@@ -6,6 +6,7 @@ include_directories(includes)
 
 add_executable(hmp
     src/main.c
+    src/soundfont.c
     src/midiplayer.c
 )
 target_link_libraries(hmp m)

@@ -5,6 +5,7 @@
 #include <math.h>
 
 #include "midiplayer.h"
+#include "thread_args.h"
 
 uint16_t swap_uint16(uint16_t val)
 {
@@ -215,8 +216,12 @@ void playMidiFile(tsf *tsf, MIDIFile *midiFile)
     }
 }
 
-void loadMidiFile(tsf *tsf, char *filename)
+void *loadMidiFile(void *context)
 {
+    struct midiPlayer_args *args = (struct midiPlayer_args *)context;
+    tsf *tsf = args->TinySoundFont;
+    char *filename = args->midiFile;
+
     MIDIFile midiFile;
     midiFile.TrackCount = 0;
     midiFile.Division = 0;
@@ -328,7 +333,7 @@ void loadMidiFile(tsf *tsf, char *filename)
         fprintf(stderr, "Total read: %d bytes\n", offset);
     }
 
-    playMidiFile(&tsf, &midiFile);
+    playMidiFile(tsf, &midiFile);
 
     free(midiFile.Tracks);
     free(midiFile.Data);
@@ -336,4 +341,6 @@ void loadMidiFile(tsf *tsf, char *filename)
     fclose(file);
 
     fprintf(stderr, "MIDI file loaded\n");
+
+    return NULL;
 }

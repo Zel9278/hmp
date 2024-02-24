@@ -24,13 +24,16 @@ SOFTWARE.
 */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
+#include <pthread.h>
+#include <unistd.h>
 
 #include "midi_header.h"
 #include "midi_data.h"
+#include "soundfont.h"
 #include "midiplayer.h"
-#define TSF_IMPLEMENTATION
-#include "tsf.h"
+#include "thread_args.h"
 
 int main(int argc, char **argv)
 {
@@ -43,40 +46,23 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    pthread_t tsf_thread;
+    int tsf_result = 0;
 
-    tsf *TinySoundFont = tsf_load_filename(soundfont);
+    struct initTSF_args *itsf_args = malloc(sizeof(struct initTSF_args));
+    itsf_args->soundfont = soundfont;
+    itsf_args->midiFile = midiFile;
 
-    int sample_rate = 48000; // Sample rate (Hz)
-    tsf_set_output(TinySoundFont, TSF_STEREO_INTERLEAVED, sample_rate, 0);
-    tsf_set_max_voices(TinySoundFont, 1000);
-
-    int buffer_length_ms = 100; // Adjust as needed
-
-    int sample_count = (sample_rate * buffer_length_ms) / 1000;
-
-    loadMidiFile(&TinySoundFont, midiFile);
-
-    float buffer[sample_count * 2]; // stereo
-    while (1)
-    {
-        /*
-        fprintf(stderr, "Press Enter to start rendering...\n");
-        scanf("%*c"); // Read and discard a character (in this case, Enter)
-
-        fprintf(stderr, "Rendering...\n");
-
-        tsf_note_on(TinySoundFont, 0, 60, 1.0f);
-        */
-        // Render audio frames
-        tsf_render_float(TinySoundFont, buffer, sample_count, 0);
-
-        // Write audio frames to stdout
-        fwrite(buffer, sizeof(float), sample_count * 2, stdout);
-
-        // Calculate delay based on buffer length and sample rate
-        int delay_us = (sample_count * 1000000) / sample_rate;
-        usleep(delay_us); // Introduce a delay based on buffer length and sample rate
+    tsf_result = pthread_create(&tsf_thread, NULL, initTSF, itsf_args);
+    printf("Soundfont Thread created\n");
+    printf("Soundfont Thread result: %d\n", tsf_result);
+    if (tsf_result != 0) {
+        free(itsf_args);
+        exit(1);
     }
+
+    pthread_join(tsf_thread, NULL);
+    free(itsf_args);
 
     return 0;
 }
