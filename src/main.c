@@ -58,10 +58,10 @@ int main(int argc, char **argv)
     float buffer[sample_count * 2]; // stereo
     while (1)
     {
-        printf("Press Enter to start rendering...\n");
+        fprintf(stderr, "Press Enter to start rendering...\n");
         scanf("%*c"); // Read and discard a character (in this case, Enter)
 
-        printf("Rendering...\n");
+        fprintf(stderr, "Rendering...\n");
 
         // Render audio frames
         tsf_render_float(TinySoundFont, buffer, sample_count, 0);
