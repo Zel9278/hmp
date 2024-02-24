@@ -31,7 +31,7 @@ void sleep_nanos(long nanos)
 long get_ns()
 {
     struct timespec ts;
-    clock_gettime(0, &ts);
+    clock_gettime(CLOCK_REALTIME, &ts);
     return (unsigned long long)ts.tv_sec * 1000000000 + ts.tv_nsec;
 }
 
@@ -356,6 +356,8 @@ void *loadMidiFile(void *context)
     }
 
     pthread_join(midiPlayer_play_thread, NULL);
+
+    free(mp_args);
 
     free(midiFile.Tracks);
     free(midiFile.Data);
