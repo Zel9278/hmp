@@ -44,15 +44,28 @@ int main(int argc, char** argv)
 
     //loadMidiFile(midiFile);
 
-    int time = 22050;
-
     tsf* TinySoundFont = tsf_load_filename(soundfont);
-    tsf_set_output(TinySoundFont, TSF_STEREO_INTERLEAVED, 48000, 0);
-    tsf_note_on(TinySoundFont, 0, 60, 1.0f);
-    float HalfSecond[time];
-    tsf_render_float(TinySoundFont, HalfSecond, time/2, 0);
 
-    fwrite(HalfSecond, sizeof(float), time, stdout);
+    int sample_rate = 48000; // Sample rate (Hz)
+    tsf_set_output(TinySoundFont, TSF_STEREO_INTERLEAVED, sample_rate, 0);
+    tsf_note_on(TinySoundFont, 0, 60, 1.0f);
+
+    int buffer_length_ms = 100; // Adjust as needed
+
+    int sample_count = (sample_rate * buffer_length_ms) / 1000;
+
+    float buffer[sample_count * 2]; //stereo
+    while (1) {
+        // Render audio frames
+        tsf_render_float(TinySoundFont, buffer, sample_count, 0);
+
+        // Write audio frames to stdout
+        fwrite(buffer, sizeof(float), sample_count * 2, stdout);
+
+        // Calculate delay based on buffer length and sample rate
+        int delay_us = (sample_count * 1000000) / sample_rate;
+        usleep(delay_us); // Introduce a delay based on buffer length and sample rate
+    }
 
     return 0;
 }
