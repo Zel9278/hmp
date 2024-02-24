@@ -37,7 +37,6 @@ void *initTSF(void *context)
     fprintf(stderr, "MidiPlayer Thread created\n");
     fprintf(stderr, "MidiPlayer Thread result: %d\n", midiPlayer_result);
     if (midiPlayer_result != 0) {
-        tsf_close(TinySoundFont);
         free(mp_args);
         exit(1);
     }
