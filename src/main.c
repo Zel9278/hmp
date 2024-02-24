@@ -53,7 +53,7 @@ int main(int argc, char **argv)
 
     int sample_count = (sample_rate * buffer_length_ms) / 1000;
 
-    loadMidiFile(TinySoundFont, midiFile);
+    loadMidiFile(&TinySoundFont, midiFile);
 
     float buffer[sample_count * 2]; // stereo
     while (1)

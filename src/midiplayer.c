@@ -328,7 +328,7 @@ void loadMidiFile(tsf *tsf, char *filename)
         fprintf(stderr, "Total read: %d bytes\n", offset);
     }
 
-    playMidiFile(tsf, &midiFile);
+    playMidiFile(&tsf, &midiFile);
 
     free(midiFile.Tracks);
     free(midiFile.Data);
