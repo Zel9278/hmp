@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#include "midi_header.h"
 #include "tsf.h"
 
 struct initTSF_args
@@ -14,10 +15,16 @@ struct initTSF_args
     char *midiFile;
 };
 
-struct midiPlayer_args
+struct midiPlayer_load_args
 {
     tsf *TinySoundFont;
     char *midiFile;
+};
+
+struct midiPlayer_play_args
+{
+    tsf *TinySoundFont;
+    MIDIFile *midiFile;
 };
 
 #endif

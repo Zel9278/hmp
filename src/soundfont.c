@@ -16,8 +16,8 @@ void *initTSF(void *context)
     char *soundfont = args->soundfont;
     char *midiFile = args->midiFile;
 
-    pthread_t midiPlayer_thread;
-    int midiPlayer_result = 0;
+    pthread_t midiPlayer_load_thread;
+    int midiPlayer_load_result = 0;
 
     tsf *TinySoundFont = tsf_load_filename(soundfont);
 
@@ -29,14 +29,14 @@ void *initTSF(void *context)
 
     int sample_count = (sample_rate * buffer_length_ms) / 1000;
 
-    struct midiPlayer_args *mp_args = malloc(sizeof(struct midiPlayer_args));
-    mp_args->TinySoundFont = &TinySoundFont;
+    struct midiPlayer_load_args *mp_args = malloc(sizeof(struct midiPlayer_load_args));
+    mp_args->TinySoundFont = TinySoundFont;
     mp_args->midiFile = midiFile;
 
-    midiPlayer_result = pthread_create(&midiPlayer_thread, NULL, loadMidiFile, mp_args);
-    fprintf(stderr, "MidiPlayer Thread created\n");
-    fprintf(stderr, "MidiPlayer Thread result: %d\n", midiPlayer_result);
-    if (midiPlayer_result != 0) {
+    midiPlayer_load_result = pthread_create(&midiPlayer_load_thread, NULL, loadMidiFile, mp_args);
+    fprintf(stderr, "MidiPlayer Load Thread created\n");
+    fprintf(stderr, "MidiPlayer Load Thread result: %d\n", midiPlayer_load_result);
+    if (midiPlayer_load_result != 0) {
         free(mp_args);
         exit(1);
     }
@@ -52,7 +52,7 @@ void *initTSF(void *context)
         usleep(delay_us);
     }
 
-    pthread_join(midiPlayer_thread, NULL);
+    pthread_join(midiPlayer_load_thread, NULL);
 
     tsf_close(TinySoundFont);
     free(mp_args);

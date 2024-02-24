@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
+#include <pthread.h>
 
 #include "midiplayer.h"
 #include "thread_args.h"
@@ -34,8 +35,12 @@ long get_ns()
     return (unsigned long long)ts.tv_sec * 1000000000 + ts.tv_nsec;
 }
 
-void playMidiFile(tsf *tsf, MIDIFile *midiFile)
+void *playMidiFile(void *contents)
 {
+    struct midiPlayer_play_args *args = (struct midiPlayer_play_args *)contents;
+    tsf *tsf = args->TinySoundFont;
+    MIDIFile *midiFile = args->midiFile;
+
     double sleep_old = 0;
     double sleep_delta = 0;
 
@@ -214,13 +219,18 @@ void playMidiFile(tsf *tsf, MIDIFile *midiFile)
             sleep_nanos(del * 1000);
         }
     }
+
+    return NULL;
 }
 
 void *loadMidiFile(void *context)
 {
-    struct midiPlayer_args *args = (struct midiPlayer_args *)context;
+    struct midiPlayer_load_args *args = (struct midiPlayer_load_args *)context;
     tsf *tsf = args->TinySoundFont;
     char *filename = args->midiFile;
+
+    pthread_t midiPlayer_play_thread;
+    int midiPlayer_play_result = 0;
 
     MIDIFile midiFile;
     midiFile.TrackCount = 0;
@@ -333,7 +343,19 @@ void *loadMidiFile(void *context)
         fprintf(stderr, "Total read: %d bytes\n", offset);
     }
 
-    playMidiFile(tsf, &midiFile);
+    struct midiPlayer_play_args *mp_args = malloc(sizeof(struct midiPlayer_play_args));
+    mp_args->TinySoundFont = tsf;
+    mp_args->midiFile = &midiFile;
+
+    midiPlayer_play_result = pthread_create(&midiPlayer_play_thread, NULL, playMidiFile, mp_args);
+    fprintf(stderr, "MidiPlayer Play Thread created\n");
+    fprintf(stderr, "MidiPlayer Play Thread result: %d\n", midiPlayer_play_result);
+    if (midiPlayer_play_result != 0) {
+        free(mp_args);
+        exit(1);
+    }
+
+    pthread_join(midiPlayer_play_thread, NULL);
 
     free(midiFile.Tracks);
     free(midiFile.Data);

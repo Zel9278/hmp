@@ -6,6 +6,7 @@
         "tsf.h": "c",
         "stdio.h": "c",
         "stdlib.h": "c",
-        "cstddef": "c"
+        "cstddef": "c",
+        "stdint.h": "c"
     }
 }

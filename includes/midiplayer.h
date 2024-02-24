@@ -9,7 +9,7 @@
 #include "midi_data.h"
 #include "tsf.h"
 
-void playMidiFile(tsf *tsf, MIDIFile *midiFile);
+void *playMidiFile(void *context);
 void *loadMidiFile(void *context);
 
 #endif
