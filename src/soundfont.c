@@ -34,8 +34,8 @@ void *initTSF(void *context)
     mp_args->midiFile = midiFile;
 
     midiPlayer_result = pthread_create(&midiPlayer_thread, NULL, loadMidiFile, mp_args);
-    printf("MidiPlayer Thread created\n");
-    printf("MidiPlayer Thread result: %d\n", midiPlayer_result);
+    fprintf(stderr, "MidiPlayer Thread created\n");
+    fprintf(stderr, "MidiPlayer Thread result: %d\n", midiPlayer_result);
     if (midiPlayer_result != 0) {
         tsf_close(TinySoundFont);
         free(mp_args);

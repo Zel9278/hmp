@@ -54,8 +54,8 @@ int main(int argc, char **argv)
     itsf_args->midiFile = midiFile;
 
     tsf_result = pthread_create(&tsf_thread, NULL, initTSF, itsf_args);
-    printf("Soundfont Thread created\n");
-    printf("Soundfont Thread result: %d\n", tsf_result);
+    fprintf(stderr, "Soundfont Thread created\n");
+    fprintf(stderr, "Soundfont Thread result: %d\n", tsf_result);
     if (tsf_result != 0) {
         free(itsf_args);
         exit(1);
