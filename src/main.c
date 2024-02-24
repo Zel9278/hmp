@@ -32,19 +32,20 @@ SOFTWARE.
 #define TSF_IMPLEMENTATION
 #include "tsf.h"
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
     char *soundfont = argv[1];
     char *midiFile = argv[2];
 
-    if (argc < 3) {
+    if (argc < 3)
+    {
         fprintf(stderr, "Usage: %s soundfont.sf2 midiFile->mid\n", argv[0]);
         return 1;
     }
 
-    //loadMidiFile(midiFile);
+    // loadMidiFile(midiFile);
 
-    tsf* TinySoundFont = tsf_load_filename(soundfont);
+    tsf *TinySoundFont = tsf_load_filename(soundfont);
 
     int sample_rate = 48000; // Sample rate (Hz)
     tsf_set_output(TinySoundFont, TSF_STEREO_INTERLEAVED, sample_rate, 0);
@@ -54,8 +55,14 @@ int main(int argc, char** argv)
 
     int sample_count = (sample_rate * buffer_length_ms) / 1000;
 
-    float buffer[sample_count * 2]; //stereo
-    while (1) {
+    float buffer[sample_count * 2]; // stereo
+    while (1)
+    {
+        printf("Press Enter to start rendering...\n");
+        scanf("%*c"); // Read and discard a character (in this case, Enter)
+
+        printf("Rendering...\n");
+
         // Render audio frames
         tsf_render_float(TinySoundFont, buffer, sample_count, 0);
 
