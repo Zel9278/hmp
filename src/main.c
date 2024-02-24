@@ -48,6 +48,7 @@ int main(int argc, char **argv)
 
     int sample_rate = 48000; // Sample rate (Hz)
     tsf_set_output(TinySoundFont, TSF_STEREO_INTERLEAVED, sample_rate, 0);
+    tsf_set_max_voices(TinySoundFont, 1000);
 
     int buffer_length_ms = 100; // Adjust as needed
 
