@@ -43,7 +43,6 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    // loadMidiFile(midiFile);
 
     tsf *TinySoundFont = tsf_load_filename(soundfont);
 
@@ -54,15 +53,19 @@ int main(int argc, char **argv)
 
     int sample_count = (sample_rate * buffer_length_ms) / 1000;
 
+    loadMidiFile(TinySoundFont, midiFile);
+
     float buffer[sample_count * 2]; // stereo
     while (1)
     {
+        /*
         fprintf(stderr, "Press Enter to start rendering...\n");
         scanf("%*c"); // Read and discard a character (in this case, Enter)
 
         fprintf(stderr, "Rendering...\n");
 
         tsf_note_on(TinySoundFont, 0, 60, 1.0f);
+        */
         // Render audio frames
         tsf_render_float(TinySoundFont, buffer, sample_count, 0);
 

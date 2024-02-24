@@ -33,7 +33,7 @@ long get_ns()
     return (unsigned long long)ts.tv_sec * 1000000000 + ts.tv_nsec;
 }
 
-void playMidiFile(MIDIFile *midiFile)
+void playMidiFile(tsf *tsf, MIDIFile *midiFile)
 {
     double sleep_old = 0;
     double sleep_delta = 0;
@@ -94,6 +94,7 @@ void playMidiFile(MIDIFile *midiFile)
                         int note = dataByte1;
 
                         fprintf(stderr, "Note off - Channel: %d, Note: %d\n", channel, note);
+                        tsf_note_off(tsf, 0, note);
                     }
                     break;
                     case 0x90:
@@ -103,6 +104,7 @@ void playMidiFile(MIDIFile *midiFile)
                         int note = dataByte1;
                         int velocity = dataByte2;
 
+                        tsf_note_on(tsf, 0, note, velocity / 127.0f);
                         fprintf(stderr, "Note on - Channel: %d, Note: %d, Velocity: %d\n", channel, note, velocity);
                     }
                     break;
@@ -213,7 +215,7 @@ void playMidiFile(MIDIFile *midiFile)
     }
 }
 
-void loadMidiFile(char *filename)
+void loadMidiFile(tsf *tsf, char *filename)
 {
     MIDIFile midiFile;
     midiFile.TrackCount = 0;
@@ -326,7 +328,7 @@ void loadMidiFile(char *filename)
         fprintf(stderr, "Total read: %d bytes\n", offset);
     }
 
-    playMidiFile(&midiFile);
+    playMidiFile(tsf, &midiFile);
 
     free(midiFile.Tracks);
     free(midiFile.Data);
