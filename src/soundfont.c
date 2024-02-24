@@ -42,8 +42,6 @@ void *initTSF(void *context)
         exit(1);
     }
 
-    pthread_join(midiPlayer_thread, NULL);
-
     float buffer[sample_count * 2];
     while (1)
     {
@@ -54,6 +52,8 @@ void *initTSF(void *context)
         int delay_us = (sample_count * 1000000) / sample_rate;
         usleep(delay_us);
     }
+
+    pthread_join(midiPlayer_thread, NULL);
 
     tsf_close(TinySoundFont);
     free(mp_args);
