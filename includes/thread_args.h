@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#include "tsf.h"
+
 struct initTSF_args
 {
     char *soundfont;

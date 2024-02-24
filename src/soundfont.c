@@ -30,7 +30,7 @@ void *initTSF(void *context)
     int sample_count = (sample_rate * buffer_length_ms) / 1000;
 
     struct midiPlayer_args *mp_args = malloc(sizeof(struct midiPlayer_args));
-    mp_args->TinySoundFont = &TinySoundFont;
+    mp_args->TinySoundFont = TinySoundFont;
     mp_args->midiFile = midiFile;
 
     midiPlayer_result = pthread_create(&midiPlayer_thread, NULL, loadMidiFile, mp_args);
