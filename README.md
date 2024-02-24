@@ -2,7 +2,7 @@
 
 This is WIP.
 
-## Thanks By
+## Thanks To
 [schellingo/TinySoundFont](https://github.com/schellingb/TinySoundFont) for include tsf.h  
 [kazukazu123123/KazuMIDIPlayer-CS](https://github.com/kazukazu123123/KazuMIDIPlayer-CS) for Source Code Transfer
 
