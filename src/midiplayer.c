@@ -28,19 +28,20 @@ void sleep_nanos(long nanos)
 
 long get_ns()
 {
-    clock_t ticks = clock();
-    return (long)ticks;
+    struct timespec ts;
+    clock_gettime(0, &ts);
+    return (unsigned long long)ts.tv_sec * 1000000000 + ts.tv_nsec;
 }
 
 void playMidiFile(MIDIFile *midiFile)
 {
-    uint32_t sleep_old = 0;
-    uint32_t sleep_delta = 0;
+    double sleep_old = 0;
+    double sleep_delta = 0;
 
     uint32_t ticker = 0;
 
     uint32_t tempo = 500000;
-    uint32_t tick_mult = fmaxf((tempo * 10) / midiFile->Division, 1);
+    float tick_mult = fmaxf((tempo * 10) / (float)midiFile->Division, 1);
 
     for (int c = 0; c < midiFile->TrackCount; c++)
     {
@@ -49,8 +50,7 @@ void playMidiFile(MIDIFile *midiFile)
 
         do
         {
-            byte1 = midiFile->Data[midiFile->TrackOffsets[c]];
-            midiFile->TrackOffsets[c] += 1;
+            byte1 = *(midiFile->Tracks[c].head)++;
             nval = (nval << 7) + (byte1 & 0x7F);
         } while (byte1 >= 0x80);
 
@@ -71,67 +71,67 @@ void playMidiFile(MIDIFile *midiFile)
         {
             while (midiFile->Tracks[i].Tick <= midiFile->CurrentTick && !midiFile->Tracks[i].Ended)
             {
-                uint8_t byteValue = midiFile->Data[midiFile->TrackOffsets[i]];
-                if (byteValue != 0)
-                {
-                    printf("Byte: %d\n", byteValue);
-                }
+                uint8_t byteValue = *(midiFile->Tracks[i]).head;
 
                 if ((byteValue & 0x80) != 0)
                 {
+                    midiFile->Tracks[i].head++;
                     midiFile->Tracks[i].RunningStatus = byteValue;
-                    midiFile->TrackOffsets[i]++;
                 }
 
                 if (midiFile->Tracks[i].RunningStatus < 0xc0 || (0xe0 <= midiFile->Tracks[i].RunningStatus && midiFile->Tracks[i].RunningStatus < 0xf0))
                 {
                     int statusByte = midiFile->Tracks[i].RunningStatus;
-                    int dataByte1 = midiFile->Data[midiFile->TrackOffsets[i]];
-                    int dataByte2 = midiFile->Data[midiFile->TrackOffsets[i] + 1];
+                    int dataByte1 = *midiFile->Tracks[i].head;
+                    int dataByte2 = *(midiFile->Tracks[i].head + 1);
 
                     switch (statusByte)
                     {
                     case 0x80:
+                    {
+
                         int channel = statusByte & 0x0F;
                         int note = dataByte1;
 
-                        printf("Note off - Channel: %d, Note: %d", channel, note);
-                        break;
+                        fprintf(stderr, "Note off - Channel: %d, Note: %d\n", channel, note);
+                    }
+                    break;
                     case 0x90:
-                        break;
+                    {
+
+                        int channel = statusByte & 0x0F;
+                        int note = dataByte1;
+                        int velocity = dataByte2;
+
+                        fprintf(stderr, "Note on - Channel: %d, Note: %d, Velocity: %d\n", channel, note, velocity);
+                    }
+                    break;
                     }
 
-                    midiFile->TrackOffsets[i] += 2;
+                    midiFile->Tracks[i].head += 2;
                 }
                 else if (midiFile->Tracks[i].RunningStatus < 0xe0)
                 {
                     int statusByte = midiFile->Tracks[i].RunningStatus;
-                    int dataByte1 = midiFile->Data[midiFile->TrackOffsets[i]++];
+                    int dataByte1 = *(midiFile->Tracks[i]).head++;
 
                     switch (statusByte)
                     {
-                    case 0x80:
-                        int channel = statusByte & 0x0F;
-                        int note = dataByte1;
-
-                        printf("Note off - Channel: %d, Note: %d", channel, note);
-                        break;
-                    case 0x90:
-                        break;
+                        // later
                     }
                 }
                 else if ((midiFile->Tracks[i].RunningStatus & 0xF0) != 0)
                 {
                     uint8_t temp2 = 0;
                     if (midiFile->Tracks[i].RunningStatus != 0xf0)
-                        temp2 = midiFile->Data[midiFile->TrackOffsets[i]++];
+                        temp2 = *(midiFile->Tracks[i]).head++;
 
                     long lmsglen = 0;
                     uint64_t byte1;
 
                     do
                     {
-                        byte1 = midiFile->Data[midiFile->TrackOffsets[i]++];
+                        byte1 = *(midiFile->Tracks[i]).head++;
                         lmsglen = (lmsglen << 7) + (byte1 & 0x7F);
                     } while (byte1 >= 0x80);
 
@@ -140,10 +140,11 @@ void playMidiFile(MIDIFile *midiFile)
                         if (temp2 == 0x51)
                         {
                             tempo =
-                                (midiFile->Data[midiFile->TrackOffsets[i]] << 16) |
-                                (midiFile->Data[midiFile->TrackOffsets[i] + 1] << 8) |
-                                midiFile->Data[midiFile->TrackOffsets[i] + 2];
-                            tick_mult = fmaxf((tempo * 10) / midiFile->Division, 1);
+                                (*(midiFile->Tracks[i]).head << 16) |
+                                (*((midiFile->Tracks[i]).head + 1) << 8) |
+                                *((midiFile->Tracks[i]).head + 2);
+                            tick_mult = fmaxf((tempo * 10) / (float)midiFile->Division, 1);
+                            fprintf(stderr, "Tempo change: %d, BPM: %.2f\n", tempo, 60000000.0 / (float)tempo);
                         }
                         else if (temp2 == 0x2F)
                         {
@@ -152,22 +153,28 @@ void playMidiFile(MIDIFile *midiFile)
                         }
                     }
 
-                    midiFile->TrackOffsets[i] += (int)lmsglen;
+                    midiFile->Tracks[i].head += (int)lmsglen;
                 }
 
                 long nval2 = 0;
                 uint8_t byte2;
 
+                /*
                 do
                 {
-                    byte2 = (midiFile->TrackOffsets[i] < midiFile->DataLength ? midiFile->Data[midiFile->TrackOffsets[i]] : 0);
-                    if (midiFile->TrackOffsets[i] < midiFile->DataLength)
+                    byte2 = (((intptr_t)(midiFile->Tracks[i].head - midiFile->Data[0])) ? midiFile->Data[*(midiFile->Tracks[i]).head] : 0);
+                    if (((intptr_t)(midiFile->Tracks[i].head - midiFile->Data[0])) < midiFile->DataLength)
                     {
                         nval2 = (nval2 << 7) + (byte2 & 0x7F);
-                        midiFile->TrackOffsets[i]++;
+                        midiFile->Tracks[i].head++;
                     }
-                } while (byte2 >= 0x80 && midiFile->TrackOffsets[i] < midiFile->DataLength);
-
+                } while (byte2 >= 0x80 && ((intptr_t)(midiFile->Tracks[i].head - midiFile->Data[0])) < midiFile->DataLength);
+                */
+                do
+                {
+                    byte2 = *(midiFile->Tracks[i].head)++;
+                    nval2 = (nval2 << 7) + (byte2 & 0x7F);
+                } while (byte2 >= 0x80);
                 midiFile->Tracks[i].Tick += (uint32_t)nval2;
             }
 
@@ -181,18 +188,18 @@ void playMidiFile(MIDIFile *midiFile)
         }
 
         uint32_t delta_tick = min_tick - midiFile->CurrentTick;
-
         midiFile->CurrentTick += delta_tick;
 
         ticker = get_ns();
-
-        long temp = ticker - midiFile->LastTime;
+        float temp = ticker - midiFile->LastTime;
         midiFile->LastTime = ticker;
-
+        
         temp -= sleep_old;
+        sleep_old = round((double)(delta_tick * tick_mult));
 
-        sleep_old = (long)round((double)(delta_tick * tick_mult));
         sleep_delta += temp;
+
+
         if (sleep_delta > 0)
             temp = sleep_old - sleep_delta;
         else
@@ -214,13 +221,12 @@ void loadMidiFile(char *filename)
     midiFile.CurrentTick = 0;
     midiFile.Data = NULL;
     midiFile.DataLength = 0;
-    midiFile.TrackOffsets = NULL;
     midiFile.Tracks = NULL;
 
     FILE *file = fopen(filename, "rb");
     if (!file)
     {
-        printf("Error: could not open file %s\n", filename);
+        fprintf(stderr, "Error: could not open file %s\n", filename);
     }
 
     unsigned long fileSize;
@@ -231,12 +237,12 @@ void loadMidiFile(char *filename)
     MidiHeader header;
     fread(&header, sizeof(MidiHeader), 1, file);
 
-    printf("-- Header\n");
-    printf("ChunkID: %s\n", header.chunkID);
+    fprintf(stderr, "-- Header\n");
+    fprintf(stderr, "ChunkID: %s\n", header.chunkID);
 
     if (strcmp(header.chunkID, "MThd"))
     {
-        printf("Error: %s is not a valid MIDI file\n", filename);
+        fprintf(stderr, "Error: %s is not a valid MIDI file\n", filename);
     }
 
     header.chunkSize = swap_uint32(header.chunkSize);
@@ -246,25 +252,25 @@ void loadMidiFile(char *filename)
 
     if (header.chunkSize != 6)
     {
-        printf("Error: %s is not a valid Header Length\n", filename);
+        fprintf(stderr, "Error: %s is not a valid Header Length\n", filename);
     }
 
     if (header.formatType != 1)
     {
-        printf("Error: %s is not a valid Format Type\n", filename);
+        fprintf(stderr, "Error: %s is not a valid Format Type\n", filename);
     }
 
     if (header.timeDivision > 0x8000)
     {
-        printf("Error: SMTPE time code is not supported\n");
+        fprintf(stderr, "Error: SMTPE time code is not supported\n");
     }
 
-    printf("FormatType: %d\n", header.formatType);
-    printf("TrackSize: %d\n", header.numberOfTracks);
-    printf("Division: %d\n", header.timeDivision);
+    fprintf(stderr, "FormatType: %d\n", header.formatType);
+    fprintf(stderr, "TrackSize: %d\n", header.numberOfTracks);
+    fprintf(stderr, "Division: %d\n", header.timeDivision);
 
     unsigned long dataSize = fileSize - ((unsigned long)header.numberOfTracks * 8 + 14);
-    printf("- Allocating %lu bytes for data...\n", dataSize);
+    fprintf(stderr, "- Allocating %lu bytes for data...\n", dataSize);
 
     midiFile.Division = header.timeDivision;
     midiFile.TrackCount = header.numberOfTracks;
@@ -275,11 +281,8 @@ void loadMidiFile(char *filename)
 
     if (!midiFile.Data)
     {
-        printf("Error: could not allocate memory for MIDI data\n");
+        fprintf(stderr, "Error: could not allocate memory for MIDI data\n");
     }
-
-    int trackOffsets[midiFile.TrackCount];
-    midiFile.TrackOffsets = (int *)malloc(sizeof(int) * midiFile.TrackCount);
 
     Track tracks[midiFile.TrackCount];
     midiFile.Tracks = (Track *)malloc(sizeof(Track) * midiFile.TrackCount);
@@ -295,21 +298,20 @@ void loadMidiFile(char *filename)
         MidiTrack track;
         fread(&track, sizeof(MidiTrack), 1, file);
 
-        printf("-- Track %d\n", i);
+        fprintf(stderr, "-- Track %d\n", i);
+        fprintf(stderr, "ChunkID: %s\n", track.chunkID);
 
         if (strcmp(track.chunkID, "MTrk"))
         {
-            printf("Error: Track %d is not a valid Track\n", i);
+            fprintf(stderr, "Error: Track %d is not a valid Track\n", i);
         }
 
         track.chunkSize = swap_uint32(track.chunkSize);
 
+        midiFile.Tracks[i].head = &midiFile.Data[offset];
         midiFile.Tracks[i].RunningStatus = 0;
         midiFile.Tracks[i].Tick = 0;
         midiFile.Tracks[i].Ended = false;
-
-        midiFile.TrackOffsets[i] = offset;
-        printf("Offset: %d\n", midiFile.TrackOffsets[i]);
 
         int bytesRead = fread(&midiFile.Data[offset], 1, track.chunkSize, file);
 
@@ -317,20 +319,19 @@ void loadMidiFile(char *filename)
 
         if (bytesRead != track.chunkSize)
         {
-            printf("Error: could not read track data\n");
+            fprintf(stderr, "Error: could not read track data\n");
         }
 
-        printf("Track %d size: %d bytes\n", i, bytesRead);
-        printf("Total read: %d bytes\n", offset);
+        fprintf(stderr, "Track %d size: %d bytes\n", i, bytesRead);
+        fprintf(stderr, "Total read: %d bytes\n", offset);
     }
 
     playMidiFile(&midiFile);
 
-    free(midiFile.TrackOffsets);
     free(midiFile.Tracks);
     free(midiFile.Data);
 
     fclose(file);
 
-    printf("MIDI file loaded\n");
+    fprintf(stderr, "MIDI file loaded\n");
 }

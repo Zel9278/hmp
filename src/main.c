@@ -38,13 +38,13 @@ int main(int argc, char** argv)
     char *midiFile = argv[2];
 
     if (argc < 3) {
-        printf("Usage: %s soundfont.sf2 midiFile->mid\n", argv[0]);
+        fprintf(stderr, "Usage: %s soundfont.sf2 midiFile->mid\n", argv[0]);
         return 1;
     }
 
-    loadMidiFile(midiFile);
+    //loadMidiFile(midiFile);
 
-    /*     int time = 22050;
+    int time = 22050;
 
     tsf* TinySoundFont = tsf_load_filename(soundfont);
     tsf_set_output(TinySoundFont, TSF_STEREO_INTERLEAVED, 48000, 0);
@@ -52,7 +52,7 @@ int main(int argc, char** argv)
     float HalfSecond[time];
     tsf_render_float(TinySoundFont, HalfSecond, time/2, 0);
 
-    fwrite(HalfSecond, sizeof(float), time, stdout); */
+    fwrite(HalfSecond, sizeof(float), time, stdout);
 
     return 0;
 }
