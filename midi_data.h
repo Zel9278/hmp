@@ -10,7 +10,7 @@
 
 typedef struct {
     int RunningStatus;
-    int Tick;
+    uint32_t Tick;
     bool Ended;
 } Track;
 
@@ -22,7 +22,7 @@ typedef struct {
     int *TrackOffsets;
     Track *Tracks;
     bool Running;
-    long Lasttime;
+    long LastTime;
 } MIDIFile;
 
 #ifdef __cplusplus
