@@ -10,7 +10,7 @@
 
 typedef struct {
     int RunningStatus;
-    uint32_t Tick;
+    uint64_t Tick;
     bool Ended;
 } Track;
 
@@ -18,7 +18,7 @@ typedef struct {
     int TrackCount;
     int Division;
     uint16_t CurrentTick;
-    uint64_t *Data;
+    uint32_t *Data;
     int *TrackOffsets;
     Track *Tracks;
     bool Running;

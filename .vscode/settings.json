@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "midi_header.h": "c",
+        "midi_data.h": "c"
+    }
+}
