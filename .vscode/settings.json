@@ -4,6 +4,8 @@
         "midi_data.h": "c",
         "midiplayer.h": "c",
         "tsf.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "stdlib.h": "c",
+        "cstddef": "c"
     }
 }
