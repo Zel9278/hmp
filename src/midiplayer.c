@@ -32,6 +32,7 @@ long get_ns()
 {
     struct timespec ts;
     clock_gettime(323338142, &ts);
+    printf("Time: %ld\n", ts.tv_nsec);
     return (unsigned long long)ts.tv_sec * 1000000000 + ts.tv_nsec;
 }
 
@@ -64,7 +65,6 @@ void *playMidiFile(void *contents)
     }
 
     ticker = get_ns();
-    fprintf(stderr, "Start time: %d\n", ticker);
 
     midiFile->LastTime = ticker;
 
