@@ -31,7 +31,7 @@ void sleep_nanos(long nanos)
 long get_ns()
 {
     struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
+    clock_gettime(323338142, &ts);
     return (unsigned long long)ts.tv_sec * 1000000000 + ts.tv_nsec;
 }
 
