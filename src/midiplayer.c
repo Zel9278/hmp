@@ -19,21 +19,37 @@ uint32_t swap_uint32(uint32_t val)
     return (val << 16) | (val >> 16);
 }
 
-void sleep_nanos(long nanos)
-{
-    struct timespec sleepTime;
-    sleepTime.tv_sec = 0;
-    sleepTime.tv_nsec = nanos;
-
-    nanosleep(&sleepTime, NULL);
-}
-
-long get_ns()
+void delayExecution(long nanoseconds)
 {
     struct timespec ts;
-    clock_gettime(323338142, &ts);
-    fprintf(stderr, "Time: %ld\n", ts.tv_nsec);
-    return (unsigned long long)ts.tv_sec * 1000000000 + ts.tv_nsec;
+    ts.tv_sec = 0;
+    ts.tv_nsec = nanoseconds;
+    nanosleep(&ts, NULL);
+}
+
+long long get_ns() {
+    struct timespec ts;
+
+    // Get the current time using CLOCK_MONOTONIC_RAW (or similar clock)
+    clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+
+    // Convert the time to nanoseconds
+    long long nanoseconds = ts.tv_sec * 1000000000LL + ts.tv_nsec;
+
+    return nanoseconds;
+}
+
+void sleepNanos(long long nanos) {
+    long long start = get_ns();
+    while (1) {
+        // Get the current time
+        long long now = get_ns();
+        long long elapsed = now - start;
+        // Check if the elapsed time is greater than or equal to the specified nanoseconds
+        if (elapsed >= nanos) {
+            return;
+        }
+    }
 }
 
 void *playMidiFile(void *contents)
@@ -42,13 +58,14 @@ void *playMidiFile(void *contents)
     tsf *tsf = args->TinySoundFont;
     MIDIFile *midiFile = args->midiFile;
 
-    double sleep_old = 0;
-    double sleep_delta = 0;
+    long long sleep_old = 0;
+    long long sleep_delta = 0;
+    long long lastTime = 0;
 
-    uint32_t ticker = 0;
+    long long ticker = 0;
 
     uint32_t tempo = 500000;
-    float tick_mult = fmaxf((tempo * 10) / (float)midiFile->Division, 1);
+    double tick_mult = fmaxf((tempo * 10) / (double)midiFile->Division, 1);
 
     for (int c = 0; c < midiFile->TrackCount; c++)
     {
@@ -66,33 +83,34 @@ void *playMidiFile(void *contents)
 
     ticker = get_ns();
 
-    midiFile->LastTime = ticker;
+    lastTime = ticker;
 
     int activeTracks = midiFile->TrackCount;
 
     while (midiFile->Running)
     {
-        uint32_t min_tick = 4294967295;
+        uint64_t min_tick = UINT64_MAX;
 
         for (int i = 0; i < midiFile->TrackCount; i++)
         {
-            while (midiFile->Tracks[i].Tick <= midiFile->CurrentTick && !midiFile->Tracks[i].Ended)
+            Track *track = &(midiFile->Tracks[i]);
+            while (track->Tick <= midiFile->CurrentTick && !track->Ended)
             {
-                uint8_t byteValue = *(midiFile->Tracks[i]).head;
+                uint8_t byteValue = *track->head;
 
-                if ((byteValue & 0x80) != 0)
+                if (byteValue & 0x80)
                 {
-                    midiFile->Tracks[i].head++;
-                    midiFile->Tracks[i].RunningStatus = byteValue;
+                    track->head++;
+                    track->RunningStatus = byteValue;
                 }
 
-                if (midiFile->Tracks[i].RunningStatus < 0xc0 || (0xe0 <= midiFile->Tracks[i].RunningStatus && midiFile->Tracks[i].RunningStatus < 0xf0))
+                if (track->RunningStatus < 0xc0 || (0xe0 <= track->RunningStatus && track->RunningStatus < 0xf0))
                 {
-                    int statusByte = midiFile->Tracks[i].RunningStatus;
-                    int dataByte1 = *midiFile->Tracks[i].head;
-                    int dataByte2 = *(midiFile->Tracks[i].head + 1);
+                    int statusByte = track->RunningStatus;
+                    int dataByte1 = *track->head;
+                    int dataByte2 = *(track->head + 1);
 
-                    switch (statusByte)
+                    switch (statusByte & 0xF0)
                     {
                     case 0x80:
                     {
@@ -100,7 +118,7 @@ void *playMidiFile(void *contents)
                         int channel = statusByte & 0x0F;
                         int note = dataByte1;
 
-                        //fprintf(stderr, "Note off - Channel: %d, Note: %d\n", channel, note);
+                        // fprintf(stderr, "Note off - Channel: %d, Note: %d\n", channel, note);
                         tsf_note_off(tsf, 0, note);
                     }
                     break;
@@ -112,60 +130,57 @@ void *playMidiFile(void *contents)
                         int velocity = dataByte2;
 
                         tsf_note_on(tsf, 0, note, velocity / 127.0f);
-                        //fprintf(stderr, "Note on - Channel: %d, Note: %d, Velocity: %d\n", channel, note, velocity);
+                        // fprintf(stderr, "Note on - Channel: %d, Note: %d, Velocity: %d\n", channel, note, velocity);
                     }
                     break;
                     }
 
-                    midiFile->Tracks[i].head += 2;
+                    track->head += 2;
                 }
-                else if (midiFile->Tracks[i].RunningStatus < 0xe0)
+                else if (track->RunningStatus < 0xe0)
                 {
-                    int statusByte = midiFile->Tracks[i].RunningStatus;
-                    int dataByte1 = *(midiFile->Tracks[i]).head++;
+                    int statusByte = track->RunningStatus;
+                    char dataByte1 = track->head++;
 
                     switch (statusByte)
                     {
                         // later
                     }
                 }
-                else if ((midiFile->Tracks[i].RunningStatus & 0xF0) != 0)
+                else if (track->RunningStatus & 0xF0)
                 {
                     uint8_t temp2 = 0;
-                    if (midiFile->Tracks[i].RunningStatus != 0xf0)
-                        temp2 = *(midiFile->Tracks[i]).head++;
+                    if (track->RunningStatus != 0xf0)
+                        temp2 = *track->head++;
 
-                    long lmsglen = 0;
-                    uint64_t byte1;
+                    uint32_t lmsglen = 0;
+                    uint8_t byte1;
 
                     do
                     {
-                        byte1 = *(midiFile->Tracks[i]).head++;
+                        byte1 = *track->head++;
                         lmsglen = (lmsglen << 7) + (byte1 & 0x7F);
                     } while (byte1 >= 0x80);
 
-                    if ((midiFile->Tracks[i].RunningStatus & 0xFF) != 0xF0)
+                    if ((track->RunningStatus & 0xFF) != 0xF0)
                     {
                         if (temp2 == 0x51)
                         {
-                            tempo =
-                                (*(midiFile->Tracks[i]).head << 16) |
-                                (*((midiFile->Tracks[i]).head + 1) << 8) |
-                                *((midiFile->Tracks[i]).head + 2);
+                            tempo = *track->head << 16 | *(track->head + 1) << 8 | *(track->head + 2);
                             tick_mult = fmaxf((tempo * 10) / (float)midiFile->Division, 1);
-                            fprintf(stderr, "Tempo change: %d, BPM: %.2f\n", tempo, 60000000.0 / (float)tempo);
+                            // fprintf(stderr, "Tempo change: %d, BPM: %.2f\n", tempo, 60000000.0 / (float)tempo);
                         }
                         else if (temp2 == 0x2F)
                         {
-                            midiFile->Tracks[i].Ended = true;
+                            track->Ended = true;
                             activeTracks--;
                         }
                     }
 
-                    midiFile->Tracks[i].head += (int)lmsglen;
+                    track->head += (int)lmsglen;
                 }
 
-                long nval2 = 0;
+                uint32_t nval2 = 0;
                 uint8_t byte2;
 
                 /*
@@ -181,17 +196,17 @@ void *playMidiFile(void *contents)
                 */
                 do
                 {
-                    byte2 = *(midiFile->Tracks[i].head)++;
+                    byte2 = *track->head++;
                     nval2 = (nval2 << 7) + (byte2 & 0x7F);
                 } while (byte2 >= 0x80);
-                midiFile->Tracks[i].Tick += (uint32_t)nval2;
+                track->Tick += nval2;
             }
 
-            if (!midiFile->Tracks[i].Ended && midiFile->Tracks[i].Tick < min_tick)
-                min_tick = midiFile->Tracks[i].Tick;
+            if (!track->Ended && track->Tick < min_tick)
+                min_tick = track->Tick;
         }
 
-        if (activeTracks == 0)
+        if (!activeTracks)
         {
             break;
         }
@@ -199,26 +214,69 @@ void *playMidiFile(void *contents)
         uint32_t delta_tick = min_tick - midiFile->CurrentTick;
         midiFile->CurrentTick += delta_tick;
 
+        //fprintf(stderr, "delta tick: %ld\n", delta_tick);
+
+
         ticker = get_ns();
-        float temp = ticker - midiFile->LastTime;
-        midiFile->LastTime = ticker;
-        
+
+        // fprintf(stderr, "ticker: %ld nanoseconds\n", ticker);
+
+        //playback will drift over time
+        long long temp = ticker - lastTime;
+        fprintf(stderr, "temp: %ld\n", temp);
+        // fprintf(stderr, "temp: %ld nanoseconds\n", ticker);
+        lastTime = ticker;
+
         temp -= sleep_old;
-        sleep_old = round((double)(delta_tick * tick_mult));
-
+        sleep_old = delta_tick * tick_mult;
         sleep_delta += temp;
-
+        //fprintf(stderr, "sleepdelta: %ld nanoseconds\n", sleep_old);
 
         if (sleep_delta > 0)
             temp = sleep_old - sleep_delta;
         else
             temp = sleep_old;
 
-        long del = temp / 10;
-        if (temp > 0)
-        {
-            sleep_nanos(del * 1000);
-        }
+        uint64_t del = temp * 100;
+        // if (temp > 0)
+        //{
+        //  usleep(del * 100);
+        //delayExecution(del);
+
+        usleep(sleep_old / 10);
+
+        //fprintf(stderr, "Sleeping for %ld nanoseconds\n", del);
+        //}
+
+        // unsigned int deltaTick = min_tick - midiFile->CurrentTick;
+        // midiFile->CurrentTick += deltaTick;
+
+        // struct timespec ticker;
+        // clock_gettime(CLOCK_MONOTONIC, &ticker);
+        // double lastTime = ticker.tv_sec + ticker.tv_nsec / 1.0e9;
+
+        // double temp = ((double)clock() - lastTime) * CLOCKS_PER_SEC;
+
+        // lastTime = clock();
+        // temp -= sleepOld;
+        // sleepOld = deltaTick * tickMultiplier;
+        // clock_gettime(CLOCK_MONOTONIC, &ticker);
+        // double currentTime = ticker.tv_sec + ticker.tv_nsec / 1.0e9;
+        // double sleepDelta = currentTime - lastTime;
+
+        // if (sleepDelta > 0)
+        // {
+        //     temp = sleepOld - sleepDelta;
+        // }
+        // else
+        // {
+        //     temp = sleepOld;
+        // }
+
+        // if (temp > 0)
+        // {
+        //     delayExecution((long)(temp * 1.0e9)); // converting seconds to nanoseconds
+        // }
     }
 
     return NULL;
@@ -322,6 +380,7 @@ void *loadMidiFile(void *context)
         if (strcmp(track.chunkID, "MTrk"))
         {
             fprintf(stderr, "Error: Track %d is not a valid Track\n", i);
+            continue;
         }
 
         track.chunkSize = swap_uint32(track.chunkSize);
@@ -351,7 +410,8 @@ void *loadMidiFile(void *context)
     midiPlayer_play_result = pthread_create(&midiPlayer_play_thread, NULL, playMidiFile, mp_args);
     fprintf(stderr, "MidiPlayer Play Thread created\n");
     fprintf(stderr, "MidiPlayer Play Thread result: %d\n", midiPlayer_play_result);
-    if (midiPlayer_play_result != 0) {
+    if (midiPlayer_play_result != 0)
+    {
         free(mp_args);
         exit(1);
     }

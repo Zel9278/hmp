@@ -15,6 +15,12 @@ struct initTSF_args
     char *midiFile;
 };
 
+struct loop_args
+{
+    tsf *TinySoundFont;
+    int sample_rate;
+};
+
 struct midiPlayer_load_args
 {
     tsf *TinySoundFont;

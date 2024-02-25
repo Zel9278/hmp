@@ -22,12 +22,12 @@ typedef struct {
 typedef struct {
     int TrackCount;
     int Division;
-    uint16_t CurrentTick;
+    uint64_t CurrentTick;
     unsigned char *Data;
     int DataLength;
     Track *Tracks;
     bool Running;
-    long LastTime;
+    unsigned long long LastTime;
 } MIDIFile;
 
 #endif
