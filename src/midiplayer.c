@@ -32,7 +32,7 @@ long get_ns()
 {
     struct timespec ts;
     clock_gettime(323338142, &ts);
-    printf("Time: %ld\n", ts.tv_nsec);
+    fprintf(stderr, "Time: %ld\n", ts.tv_nsec);
     return (unsigned long long)ts.tv_sec * 1000000000 + ts.tv_nsec;
 }
 
