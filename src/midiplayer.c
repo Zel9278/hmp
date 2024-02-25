@@ -64,7 +64,7 @@ void *playMidiFile(void *contents)
     }
 
     ticker = get_ns();
-    printf("Start time: %d\n", ticker);
+    fprintf(stderr, "Start time: %d\n", ticker);
 
     midiFile->LastTime = ticker;
 
