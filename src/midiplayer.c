@@ -64,6 +64,7 @@ void *playMidiFile(void *contents)
     }
 
     ticker = get_ns();
+    printf("Start time: %d\n", ticker);
 
     midiFile->LastTime = ticker;
 
@@ -99,7 +100,7 @@ void *playMidiFile(void *contents)
                         int channel = statusByte & 0x0F;
                         int note = dataByte1;
 
-                        fprintf(stderr, "Note off - Channel: %d, Note: %d\n", channel, note);
+                        //fprintf(stderr, "Note off - Channel: %d, Note: %d\n", channel, note);
                         tsf_note_off(tsf, 0, note);
                     }
                     break;
@@ -111,7 +112,7 @@ void *playMidiFile(void *contents)
                         int velocity = dataByte2;
 
                         tsf_note_on(tsf, 0, note, velocity / 127.0f);
-                        fprintf(stderr, "Note on - Channel: %d, Note: %d, Velocity: %d\n", channel, note, velocity);
+                        //fprintf(stderr, "Note on - Channel: %d, Note: %d, Velocity: %d\n", channel, note, velocity);
                     }
                     break;
                     }
