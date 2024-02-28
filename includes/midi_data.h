@@ -27,7 +27,7 @@ typedef struct {
     int DataLength;
     Track *Tracks;
     bool Running;
-    unsigned long long LastTime;
+    long long LastTime;
 } MIDIFile;
 
 #endif

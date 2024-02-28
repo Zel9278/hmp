@@ -7,6 +7,7 @@
         "stdio.h": "c",
         "stdlib.h": "c",
         "cstddef": "c",
-        "stdint.h": "c"
+        "stdint.h": "c",
+        "thread_args.h": "c"
     }
 }

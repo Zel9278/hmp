@@ -10,6 +10,8 @@
 #define TSF_IMPLEMENTATION
 #include "tsf.h"
 
+extern bool IS_QUIT;
+
 void *loop_tsf(void *context)
 {
     struct loop_args *args = (struct loop_args *)context;

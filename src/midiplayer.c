@@ -4,9 +4,12 @@
 #include <time.h>
 #include <math.h>
 #include <pthread.h>
+#include <errno.h>
 
 #include "midiplayer.h"
 #include "thread_args.h"
+
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 uint16_t swap_uint16(uint16_t val)
 {
@@ -27,27 +30,35 @@ void delayExecution(long nanoseconds)
     nanosleep(&ts, NULL);
 }
 
-long long get_ns() {
+long long get_ns()
+{
     struct timespec ts;
-
-    // Get the current time using CLOCK_MONOTONIC_RAW (or similar clock)
-    clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
-
-    // Convert the time to nanoseconds
-    long long nanoseconds = ts.tv_sec * 1000000000LL + ts.tv_nsec;
-
-    return nanoseconds;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (long)ts.tv_sec * 1000000000L + ts.tv_nsec;
 }
 
-void sleepNanos(long long nanos) {
-    long long start = get_ns();
+void sleepNanos(long long nanos)
+{
+    struct timespec start, now, sleepDuration;
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
+
+    sleepDuration.tv_sec = nanos / 1000000000;
+    sleepDuration.tv_nsec = nanos % 1000000000;
+
     while (1) {
-        // Get the current time
-        long long now = get_ns();
-        long long elapsed = now - start;
-        // Check if the elapsed time is greater than or equal to the specified nanoseconds
-        if (elapsed >= nanos) {
-            return;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+
+        long elapsed_nanos = (now.tv_sec - start.tv_sec) * 1000000000 + (now.tv_nsec - start.tv_nsec);
+
+        if (elapsed_nanos >= nanos) {
+            break;
+        }
+
+        struct timespec rem;
+        if (nanosleep(&sleepDuration, &rem) == -1 && errno == EINTR) {
+            sleepDuration.tv_sec = rem.tv_sec;
+            sleepDuration.tv_nsec = rem.tv_nsec;
         }
     }
 }
@@ -58,14 +69,12 @@ void *playMidiFile(void *contents)
     tsf *tsf = args->TinySoundFont;
     MIDIFile *midiFile = args->midiFile;
 
-    long long sleep_old = 0;
+    long long ticker;
     long long sleep_delta = 0;
-    long long lastTime = 0;
+    long long sleep_old = 0;
+    long long tempo = 500000;
 
-    long long ticker = 0;
-
-    uint32_t tempo = 500000;
-    double tick_mult = fmaxf((tempo * 10) / (double)midiFile->Division, 1);
+    long long tick_mult = MAX((tempo * 10) / midiFile->Division, 1);
 
     for (int c = 0; c < midiFile->TrackCount; c++)
     {
@@ -83,8 +92,6 @@ void *playMidiFile(void *contents)
 
     ticker = get_ns();
 
-    lastTime = ticker;
-
     int activeTracks = midiFile->TrackCount;
 
     while (midiFile->Running)
@@ -98,10 +105,11 @@ void *playMidiFile(void *contents)
             {
                 uint8_t byteValue = *track->head;
 
-                if (byteValue & 0x80)
+                if ((byteValue & 0x80) != 0)
                 {
-                    track->head++;
+                    
                     track->RunningStatus = byteValue;
+                    track->head++;
                 }
 
                 if (track->RunningStatus < 0xc0 || (0xe0 <= track->RunningStatus && track->RunningStatus < 0xf0))
@@ -139,15 +147,9 @@ void *playMidiFile(void *contents)
                 }
                 else if (track->RunningStatus < 0xe0)
                 {
-                    int statusByte = track->RunningStatus;
-                    char dataByte1 = track->head++;
-
-                    switch (statusByte)
-                    {
-                        // later
-                    }
+                    // later
                 }
-                else if (track->RunningStatus & 0xF0)
+                else if ((track->RunningStatus & 0xf0) !=0)
                 {
                     uint8_t temp2 = 0;
                     if (track->RunningStatus != 0xf0)
@@ -166,9 +168,11 @@ void *playMidiFile(void *contents)
                     {
                         if (temp2 == 0x51)
                         {
-                            tempo = *track->head << 16 | *(track->head + 1) << 8 | *(track->head + 2);
-                            tick_mult = fmaxf((tempo * 10) / (float)midiFile->Division, 1);
-                            // fprintf(stderr, "Tempo change: %d, BPM: %.2f\n", tempo, 60000000.0 / (float)tempo);
+                            tempo = *track->head << 16 |
+                            *(track->head + 1) << 8 |
+                            *(track->head + 2);
+                            tick_mult = MAX((tempo * 10) / midiFile->Division, 1);
+                            fprintf(stderr, "Tempo change: %lld, BPM: %.2f\n", tempo, 60000000.0 / (float)tempo);
                         }
                         else if (temp2 == 0x2F)
                         {
@@ -183,22 +187,15 @@ void *playMidiFile(void *contents)
                 uint32_t nval2 = 0;
                 uint8_t byte2;
 
-                /*
                 do
                 {
-                    byte2 = (((intptr_t)(midiFile->Tracks[i].head - midiFile->Data[0])) ? midiFile->Data[*(midiFile->Tracks[i]).head] : 0);
-                    if (((intptr_t)(midiFile->Tracks[i].head - midiFile->Data[0])) < midiFile->DataLength)
+                    byte2 = (track->head < midiFile->Data + midiFile->DataLength) ? *track->head : 0;
+                    if (track->head < midiFile->Data + midiFile->DataLength)
                     {
                         nval2 = (nval2 << 7) + (byte2 & 0x7F);
-                        midiFile->Tracks[i].head++;
+                        track->head++;
                     }
-                } while (byte2 >= 0x80 && ((intptr_t)(midiFile->Tracks[i].head - midiFile->Data[0])) < midiFile->DataLength);
-                */
-                do
-                {
-                    byte2 = *track->head++;
-                    nval2 = (nval2 << 7) + (byte2 & 0x7F);
-                } while (byte2 >= 0x80);
+                } while (byte2 >= 0x80 && track->head < midiFile->Data + midiFile->DataLength);
                 track->Tick += nval2;
             }
 
@@ -211,72 +208,37 @@ void *playMidiFile(void *contents)
             break;
         }
 
-        uint32_t delta_tick = min_tick - midiFile->CurrentTick;
-        midiFile->CurrentTick += delta_tick;
+        long long deltaTick = min_tick - midiFile->CurrentTick;
 
-        //fprintf(stderr, "delta tick: %ld\n", delta_tick);
-
+        midiFile->CurrentTick += deltaTick;
 
         ticker = get_ns();
 
-        // fprintf(stderr, "ticker: %ld nanoseconds\n", ticker);
-
-        //playback will drift over time
-        long long temp = ticker - lastTime;
-        fprintf(stderr, "temp: %ld\n", temp);
-        // fprintf(stderr, "temp: %ld nanoseconds\n", ticker);
-        lastTime = ticker;
+        long long temp = ticker - midiFile->LastTime;
+        midiFile->LastTime = ticker;
 
         temp -= sleep_old;
-        sleep_old = delta_tick * tick_mult;
+
+        sleep_old = (long long)(deltaTick * tick_mult);
         sleep_delta += temp;
-        //fprintf(stderr, "sleepdelta: %ld nanoseconds\n", sleep_old);
 
         if (sleep_delta > 0)
+        {
             temp = sleep_old - sleep_delta;
-        else
+        } else {
             temp = sleep_old;
+        }
 
-        uint64_t del = temp * 100;
-        // if (temp > 0)
-        //{
-        //  usleep(del * 100);
-        //delayExecution(del);
+        long long del = temp / 10;
 
-        usleep(sleep_old / 10);
+        sleepNanos(60000000);
 
-        //fprintf(stderr, "Sleeping for %ld nanoseconds\n", del);
-        //}
+        //fprintf(stderr, "Sleeping for %lld nanoseconds\n", del);
+        if (temp > 0)
+        {
+            //sleepNanos(del);
+        }
 
-        // unsigned int deltaTick = min_tick - midiFile->CurrentTick;
-        // midiFile->CurrentTick += deltaTick;
-
-        // struct timespec ticker;
-        // clock_gettime(CLOCK_MONOTONIC, &ticker);
-        // double lastTime = ticker.tv_sec + ticker.tv_nsec / 1.0e9;
-
-        // double temp = ((double)clock() - lastTime) * CLOCKS_PER_SEC;
-
-        // lastTime = clock();
-        // temp -= sleepOld;
-        // sleepOld = deltaTick * tickMultiplier;
-        // clock_gettime(CLOCK_MONOTONIC, &ticker);
-        // double currentTime = ticker.tv_sec + ticker.tv_nsec / 1.0e9;
-        // double sleepDelta = currentTime - lastTime;
-
-        // if (sleepDelta > 0)
-        // {
-        //     temp = sleepOld - sleepDelta;
-        // }
-        // else
-        // {
-        //     temp = sleepOld;
-        // }
-
-        // if (temp > 0)
-        // {
-        //     delayExecution((long)(temp * 1.0e9)); // converting seconds to nanoseconds
-        // }
     }
 
     return NULL;

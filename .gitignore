@@ -1,3 +1,4 @@
-a.out
-test.mid
 build/
+src/*.o
+hmp
+hmp*

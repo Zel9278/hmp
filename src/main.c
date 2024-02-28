@@ -46,6 +46,8 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    fprintf(stderr, "C used %ld.\n", __STDC_VERSION__);
+
     pthread_t tsf_thread;
     int tsf_result = 0;
 
